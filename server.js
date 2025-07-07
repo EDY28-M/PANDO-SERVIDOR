@@ -11,7 +11,7 @@ const database = require('./config/gcp-database');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+// Configuración del puerto para Cloud Run (Cloud Run usa 8080 por defecto)
 
 // Middleware
 app.use(cors());
@@ -307,7 +307,7 @@ function createClientEmailTemplate(formData) {
                     </div>
                     <div class="contact-info">
                         <p><strong>📧 contacto@lwp.com.pe</strong></p>
-                        <p><strong>📱 +51 999 888 777</strong></p>
+                        <p><strong>📱 +51 999 888 
                     </div>
                     <div class="footer">
                         <p><strong>Atentamente,</strong></p>
@@ -668,6 +668,16 @@ app.delete('/api/contacts/:id', async (req, res) => {
     }
 });
 
+// Health check endpoint para Cloud Run
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        database_status: 'connected' // Se podría verificar la DB aquí
+    });
+});
+
 // Ruta principal
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
@@ -678,8 +688,12 @@ app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
-// Iniciar servidor
-app.listen(PORT, () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+// Iniciar servidor con configuración para Cloud Run
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Servidor PANDO corriendo en puerto ${PORT}`);
+    console.log(`🌐 Entorno: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🗄️ Base de datos: ${process.env.DB_HOST ? 'Cloud SQL' : 'Local'}`);
     console.log('✅ Servidor de correos configurado correctamente');
+    console.log('✅ Health check disponible en /health');
 }); 

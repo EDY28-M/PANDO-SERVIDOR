@@ -1,0 +1,93 @@
+name: Deploy PANDO to Cloud Run
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  PROJECT_ID: ascendant-altar-457900-v4
+  SERVICE: pando-frontend
+  REGION: us-central1
+
+jobs:
+  setup-build-publish-deploy:
+    name: Setup, Build, Publish, and Deploy
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Google Auth
+      id: auth
+      uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+    - name: Set up Cloud SDK
+      uses: 'google-github-actions/setup-gcloud@v2'
+
+    - name: Configure Docker to use gcloud as a credential helper
+      run: |-
+        gcloud --quiet auth configure-docker
+
+    - name: Get the GIT_SHA
+      id: get-sha
+      run: echo "GIT_SHA=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+    - name: Build Docker image
+      run: |-
+        docker build \
+          --tag "gcr.io/$PROJECT_ID/$SERVICE:${{ steps.get-sha.outputs.GIT_SHA }}" \
+          --tag "gcr.io/$PROJECT_ID/$SERVICE:latest" \
+          .
+
+    - name: Publish Docker image to GCR
+      run: |-
+        docker push "gcr.io/$PROJECT_ID/$SERVICE:${{ steps.get-sha.outputs.GIT_SHA }}"
+        docker push "gcr.io/$PROJECT_ID/$SERVICE:latest"
+
+    - name: Deploy to Cloud Run
+      id: deploy
+      uses: google-github-actions/deploy-cloudrun@v2
+      with:
+        service: ${{ env.SERVICE }}
+        region: ${{ env.REGION }}
+        image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{ steps.get-sha.outputs.GIT_SHA }}
+        env_vars: |
+          NODE_ENV=production
+          GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}
+          CLOUD_SQL_CONNECTION_NAME=${{ env.PROJECT_ID }}:us-central1:pando-mysql
+          DB_NAME=pando_db
+          DB_USER=root
+        secrets: |
+          DB_PASSWORD=projects/${{ env.PROJECT_ID }}/secrets/db-password:latest
+          GMAIL_USER=projects/${{ env.PROJECT_ID }}/secrets/gmail-user:latest
+          GMAIL_PASS=projects/${{ env.PROJECT_ID }}/secrets/gmail-pass:latest
+          SESSION_SECRET=projects/${{ env.PROJECT_ID }}/secrets/session-secret:latest
+        flags: |
+          --platform=managed
+          --port=8080
+          --memory=1Gi
+          --cpu=1
+          --min-instances=0
+          --max-instances=10
+          --timeout=300
+          --concurrency=80
+          --cpu-throttling
+          --allow-unauthenticated
+          --set-cloudsql-instances=${{ env.PROJECT_ID }}:us-central1:pando-mysql
+
+    - name: Show Output
+      run: echo ${{ steps.deploy.outputs.url }}
+
+    - name: Test deployment
+      run: |-
+        curl -f ${{ steps.deploy.outputs.url }}/health || exit 1
+        echo "Deployment successful! URL: ${{ steps.deploy.outputs.url }}"
