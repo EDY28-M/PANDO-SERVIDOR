@@ -67,10 +67,10 @@ jobs:
           DB_NAME=pando_db
           DB_USER=root
         secrets: |
-          DB_PASSWORD=projects/${{ env.PROJECT_ID }}/secrets/db-password:latest
-          GMAIL_USER=projects/${{ env.PROJECT_ID }}/secrets/gmail-user:latest
-          GMAIL_PASS=projects/${{ env.PROJECT_ID }}/secrets/gmail-pass:latest
-          SESSION_SECRET=projects/${{ env.PROJECT_ID }}/secrets/session-secret:latest
+          DB_PASSWORD=db-password:latest
+          GMAIL_USER=gmail-user:latest
+          GMAIL_PASS=gmail-pass:latest
+          SESSION_SECRET=session-secret:latest
         flags: |
           --platform=managed
           --port=8080
