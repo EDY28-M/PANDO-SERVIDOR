@@ -7,12 +7,15 @@ env_variables:
   GMAIL_USER: "keraaigpt.plus@gmail.com"
   GMAIL_PASS: "tnev ssds hcpx evrw"
   
-  # Configuración de Google Cloud SQL
+  # Configuración de Google Cloud SQL - ACTUALIZADA
   # Reemplaza estos valores con tu configuración real
-  GOOGLE_CLOUD_PROJECT: "tu-proyecto-id"
-  CLOUD_SQL_CONNECTION_NAME: "tu-proyecto:us-central1:pando-mysql"
+  GOOGLE_CLOUD_PROJECT: "ascendant-altar-457900-v4"
+  CLOUD_SQL_CONNECTION_NAME: "ascendant-altar-457900-v4:us-central1:pando-mysql"
+  CLOUD_SQL_PUBLIC_IP: "34.123.243.162"
+  DB_HOST: "34.123.243.162"
+  DB_PORT: "3306"
   DB_USER: "root"
-  DB_PASSWORD: "tu-contraseña-mysql"
+  DB_PASSWORD: "Junior.28"
   DB_NAME: "pando_db"
 
 # Configuración automática de instancias
@@ -27,9 +30,9 @@ resources:
   memory_gb: 0.5
   disk_size_gb: 10
 
-# Configuración de Cloud SQL Proxy
+# Configuración de Cloud SQL Proxy - ACTUALIZADA
 beta_settings:
-  cloud_sql_instances: "tu-proyecto:us-central1:pando-mysql"
+  cloud_sql_instances: "ascendant-altar-457900-v4:us-central1:pando-mysql"
 
 # Manejadores de URL
 handlers:

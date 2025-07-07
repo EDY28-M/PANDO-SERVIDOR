@@ -780,6 +780,27 @@
             text-align: center;
             padding: 40px;
             color: var(--text-muted);
+            position: relative;
+            z-index: 10;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+        }
+
+        /* Asegurar que cuando loading esté visible, otros elementos estén ocultos */
+        #contactsLoading.show {
+            display: block !important;
+        }
+
+        /* Ocultar completamente la tabla cuando loading está activo */
+        #contactsLoading.show ~ #contactsTableContainer,
+        #contactsLoading.show ~ #emptyState,
+        #contactsLoading.show ~ #pagination {
+            display: none !important;
+        }
+
+        #contactsTableContainer {
+            position: relative;
+            z-index: 1;
         }
 
         .spinner {
@@ -1857,6 +1878,7 @@
                 
                 if (statsData.success) {
                     updateStatsCards(statsData.stats);
+                    updateBadges(statsData.stats);
                 }
 
                 // Cargar actividad reciente
@@ -1865,7 +1887,6 @@
                 
                 if (contactsData.success) {
                     displayRecentActivity(contactsData.data);
-                    updateBadges(statsData.stats);
                 }
 
                 hideLoading('dashboard');
@@ -1878,7 +1899,11 @@
 
         async function loadContacts() {
             try {
+                // Mostrar loading PRIMERO antes de hacer cualquier otra cosa
                 showLoading('contacts');
+                
+                // Pausa más larga para que se vea el loading
+                await new Promise(resolve => setTimeout(resolve, 500));
                 
                 const response = await fetch('/api/contacts?limit=100');
                 const data = await response.json();
@@ -1886,16 +1911,31 @@
                 if (data.success) {
                     allContacts = data.data;
                     filteredContacts = [...allContacts];
+                    
+                    // Cargar estadísticas en paralelo
+                    const statsResponse = await fetch('/api/contacts/stats');
+                    const statsData = await statsResponse.json();
+                    if (statsData.success) {
+                        updateBadges(statsData.stats);
+                    }
+                    
+                    // IMPORTANTE: Ocultar loading ANTES de mostrar contenido
+                    hideLoading('contacts');
+                    
+                    // Pausa más larga para que el DOM se actualice completamente
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    // Mostrar contactos después de ocultar loading
                     displayContacts();
                 } else {
+                    hideLoading('contacts');
                     showEmptyState();
                 }
-
-                hideLoading('contacts');
             } catch (error) {
                 console.error('Error cargando contactos:', error);
                 hideLoading('contacts');
                 showError('Error al cargar los contactos');
+                showEmptyState();
             }
         }
 
@@ -1987,6 +2027,11 @@
             const container = document.getElementById('contactsTableContainer');
             const emptyState = document.getElementById('emptyState');
             const pagination = document.getElementById('pagination');
+            const loadingElement = document.getElementById('contactsLoading');
+
+            // PRIMERO: Asegurar que el loading esté completamente oculto
+            loadingElement.classList.remove('show');
+            loadingElement.style.display = 'none';
 
             if (filteredContacts.length === 0) {
                 container.style.display = 'none';
@@ -1995,6 +2040,7 @@
                 return;
             }
 
+            // Mostrar contenido DESPUÉS de asegurar que loading está oculto
             emptyState.classList.add('d-none');
             container.style.display = 'block';
             pagination.classList.remove('d-none');
@@ -2143,15 +2189,25 @@
         function showLoading(context) {
             if (context === 'dashboard') {
                 document.getElementById('recentActivity').innerHTML = `
-                    <div class="loading d-block">
+                    <div class="loading show">
                         <div class="spinner"></div>
                         <p>Cargando actividad reciente...</p>
                     </div>
                 `;
             } else if (context === 'contacts') {
-                document.getElementById('contactsLoading').style.display = 'block';
-                document.getElementById('contactsTableContainer').style.display = 'none';
-                document.getElementById('emptyState').classList.add('d-none');
+                // Primero ocultar TODOS los otros elementos
+                const tableContainer = document.getElementById('contactsTableContainer');
+                const emptyState = document.getElementById('emptyState');
+                const pagination = document.getElementById('pagination');
+                
+                tableContainer.style.display = 'none';
+                emptyState.classList.add('d-none');
+                pagination.classList.add('d-none');
+                
+                // DESPUÉS mostrar el loading
+                const loadingElement = document.getElementById('contactsLoading');
+                loadingElement.style.display = 'block';
+                loadingElement.classList.add('show');
             }
         }
 
@@ -2159,13 +2215,27 @@
             if (context === 'dashboard') {
                 // El contenido se reemplaza automáticamente
             } else if (context === 'contacts') {
-                document.getElementById('contactsLoading').style.display = 'none';
+                // Ocultar indicador de carga COMPLETAMENTE
+                const loadingElement = document.getElementById('contactsLoading');
+                loadingElement.classList.remove('show');
+                loadingElement.style.display = 'none';
+                
+                // Forzar reflow del DOM
+                loadingElement.offsetHeight;
             }
         }
 
         function showEmptyState() {
+            // Ocultar indicador de carga completamente
+            const loadingElement = document.getElementById('contactsLoading');
+            loadingElement.classList.remove('show');
+            loadingElement.style.display = 'none';
+            
+            // Ocultar tabla de contactos
             document.getElementById('contactsTableContainer').style.display = 'none';
+            // Ocultar paginación
             document.getElementById('pagination').classList.add('d-none');
+            // Mostrar estado vacío
             document.getElementById('emptyState').classList.remove('d-none');
         }
 

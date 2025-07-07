@@ -352,7 +352,7 @@ app.post('/send-email', async (req, res) => {
         const userAgent = req.get('User-Agent') || 'unknown';
 
         // 1. GUARDAR EN BASE DE DATOS PRIMERO (PRIORIDAD)
-        const dbResult = await database.insertContact({
+        const dbResult = await database.saveContact({
             name: name.trim(),
             email: email.trim().toLowerCase(),
             subject: subject.trim(),
@@ -433,7 +433,7 @@ app.get('/api/contacts', async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const offset = (page - 1) * limit;
 
-        const result = await database.getAllContacts(limit, offset);
+        const result = await database.getContacts({ limit, offset });
         
         if (result.success) {
             res.json({
@@ -568,7 +568,7 @@ app.get('/api/analytics/advanced', async (req, res) => {
 app.get('/api/contacts/export', async (req, res) => {
     try {
         const format = req.query.format || 'csv';
-        const result = await database.getAllContacts(10000, 0); // Obtener todos
+        const result = await database.getContacts({ limit: 10000, offset: 0 }); // Obtener todos
         
         if (result.success) {
             if (format === 'json') {

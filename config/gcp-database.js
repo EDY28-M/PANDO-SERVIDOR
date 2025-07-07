@@ -5,7 +5,8 @@ const fs = require('fs').promises;
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 console.log('🌐 Configuración de Google Cloud SQL:', {
-    host: process.env.CLOUD_SQL_CONNECTION_NAME ? 'Cloud SQL Socket' : (process.env.DB_HOST || 'localhost'),
+    connectionName: process.env.CLOUD_SQL_CONNECTION_NAME || 'No configurado',
+    host: process.env.CLOUD_SQL_PUBLIC_IP || process.env.DB_HOST || 'localhost',
     database: process.env.DB_NAME || 'pando_db',
     user: process.env.DB_USER || 'root',
     environment: process.env.NODE_ENV || 'development'
@@ -18,7 +19,7 @@ const contactsFile = path.join(backupDir, 'contacts.json');
 // Función para determinar la configuración de conexión según el entorno
 function getDbConfig() {
     const isProduction = process.env.NODE_ENV === 'production';
-    const isGoogleCloud = process.env.GOOGLE_CLOUD_PROJECT || process.env.GAE_ENV;
+    const isGoogleCloud = process.env.GAE_ENV; // Solo usar socket en App Engine
     
     // Configuración base
     const baseConfig = {
@@ -27,32 +28,30 @@ function getDbConfig() {
         database: process.env.DB_NAME || 'pando_db',
         charset: 'utf8mb4',
         connectTimeout: 60000,
-        acquireTimeout: 60000,
-        timeout: 60000,
-        reconnect: true,
         connectionLimit: 10,
         queueLimit: 0
     };
 
-    // Si estamos en Google Cloud y tenemos configuración de Cloud SQL
+    // Si estamos en App Engine, usar socket
     if (isGoogleCloud && process.env.CLOUD_SQL_CONNECTION_NAME) {
-        console.log('🌐 Usando conexión Unix Socket para Cloud SQL');
+        console.log('🌐 Usando conexión Unix Socket para Cloud SQL (App Engine)');
         return {
             ...baseConfig,
             socketPath: `/cloudsql/${process.env.CLOUD_SQL_CONNECTION_NAME}`,
-            // Para conexiones de socket no necesitamos host y port
         };
     }
     
-    // Si tenemos un host público de Cloud SQL (para desarrollo o conexión externa)
-    if (process.env.CLOUD_SQL_PUBLIC_IP) {
+    // Si tenemos Cloud SQL configurado, usar IP pública
+    if (process.env.CLOUD_SQL_PUBLIC_IP || process.env.DB_HOST) {
         console.log('🌐 Usando conexión TCP para Cloud SQL (IP pública)');
         return {
             ...baseConfig,
-            host: process.env.CLOUD_SQL_PUBLIC_IP,
+            host: process.env.CLOUD_SQL_PUBLIC_IP || process.env.DB_HOST,
             port: parseInt(process.env.DB_PORT || '3306'),
             ssl: {
-                rejectUnauthorized: false
+                rejectUnauthorized: false,
+                // Deshabilitar SNI para evitar el warning con IPs
+                servername: undefined
             }
         };
     }
@@ -269,6 +268,11 @@ async function getContacts(options = {}) {
         const connection = await pool.getConnection();
         
         const { limit = 100, offset = 0, status, search } = options;
+        
+        // Asegurar que limit y offset sean enteros válidos
+        const limitInt = Math.max(1, Math.min(1000, parseInt(limit) || 100));
+        const offsetInt = Math.max(0, parseInt(offset) || 0);
+        
         let query = 'SELECT * FROM contact_submissions';
         let params = [];
         let conditions = [];
@@ -288,16 +292,20 @@ async function getContacts(options = {}) {
             query += ' WHERE ' + conditions.join(' AND ');
         }
         
-        query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-        params.push(limit, offset);
+        // Construir LIMIT y OFFSET directamente en la query sin parámetros
+        query += ` ORDER BY created_at DESC LIMIT ${limitInt} OFFSET ${offsetInt}`;
+        
+        console.log('🔍 Ejecutando consulta:', query, 'con parámetros:', params);
         
         const [rows] = await connection.execute(query, params);
         connection.release();
         
+        console.log('✅ Contactos obtenidos:', rows.length);
         return { success: true, data: rows };
         
     } catch (error) {
         console.error('❌ Error al obtener contactos:', error.message);
+        console.error('Query que falló:', error.sql);
         return getContactsFromFile(options);
     }
 }
@@ -408,11 +416,13 @@ async function cleanupOldContacts(days = 90) {
     try {
         const connection = await pool.getConnection();
         
+        // Asegurar que days sea un entero válido
+        const daysInt = Math.max(1, Math.min(365, parseInt(days) || 90));
+        
         const [result] = await connection.execute(
             `DELETE FROM contact_submissions 
              WHERE status IN ('archived', 'read') 
-             AND created_at < DATE_SUB(NOW(), INTERVAL ? DAY)`,
-            [days]
+             AND created_at < DATE_SUB(NOW(), INTERVAL ${daysInt} DAY)`
         );
         
         connection.release();
@@ -533,6 +543,97 @@ async function getStatsFromFile() {
     }
 }
 
+async function getAdvancedAnalytics(days = 30) {
+    if (!databaseAvailable) {
+        console.log('⚠️ Base de datos no disponible para analíticas');
+        return {
+            success: false,
+            analytics: {
+                total_contacts: 0,
+                daily_contacts: [],
+                top_domains: [],
+                response_time_avg: 0,
+                contacts_by_status: {}
+            }
+        };
+    }
+    
+    try {
+        const connection = await pool.getConnection();
+        
+        // Asegurar que days sea un entero válido
+        const daysInt = Math.max(1, Math.min(365, parseInt(days) || 30));
+        
+        // Obtener contactos por día
+        const [dailyData] = await connection.execute(`
+            SELECT 
+                DATE(created_at) as date,
+                COUNT(*) as count
+            FROM contact_submissions 
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL ${daysInt} DAY)
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        `);
+        
+        // Obtener dominios más comunes
+        const [domainData] = await connection.execute(`
+            SELECT 
+                SUBSTRING_INDEX(email, '@', -1) as domain,
+                COUNT(*) as count
+            FROM contact_submissions 
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL ${daysInt} DAY)
+            GROUP BY domain
+            ORDER BY count DESC
+            LIMIT 10
+        `);
+        
+        // Obtener contactos por estado
+        const [statusData] = await connection.execute(`
+            SELECT 
+                status,
+                COUNT(*) as count
+            FROM contact_submissions 
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL ${daysInt} DAY)
+            GROUP BY status
+        `);
+        
+        // Obtener total de contactos en el período
+        const [totalData] = await connection.execute(`
+            SELECT COUNT(*) as total
+            FROM contact_submissions 
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL ${daysInt} DAY)
+        `);
+        
+        connection.release();
+        
+        const analytics = {
+            total_contacts: totalData[0].total,
+            daily_contacts: dailyData,
+            top_domains: domainData,
+            response_time_avg: 0, // Placeholder
+            contacts_by_status: statusData.reduce((acc, item) => {
+                acc[item.status] = item.count;
+                return acc;
+            }, {})
+        };
+        
+        return { success: true, analytics };
+        
+    } catch (error) {
+        console.error('❌ Error al obtener analíticas avanzadas:', error.message);
+        return {
+            success: false,
+            analytics: {
+                total_contacts: 0,
+                daily_contacts: [],
+                top_domains: [],
+                response_time_avg: 0,
+                contacts_by_status: {}
+            }
+        };
+    }
+}
+
 // Exportar funciones
 module.exports = {
     pool,
@@ -544,5 +645,6 @@ module.exports = {
     deleteContact,
     getContactStats,
     cleanupOldContacts,
-    isAvailable: () => databaseAvailable
+    isAvailable: () => databaseAvailable,
+    getAdvancedAnalytics
 };
