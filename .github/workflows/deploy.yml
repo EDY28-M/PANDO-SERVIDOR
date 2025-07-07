@@ -8,8 +8,9 @@ on:
 
 env:
   PROJECT_ID: ascendant-altar-457900-v4
-  SERVICE: pando-frontend
-  REGION: us-central1
+  SERVICE: pando-fronted  # ← Corregido: usar nombre existente
+  REGION: europe-west1    # ← Corregido: usar región existente
+  REPOSITORY: cloud-run-source-deploy  # ← Corregido: usar repositorio existente
 
 jobs:
   setup-build-publish-deploy:
@@ -35,7 +36,7 @@ jobs:
 
     - name: Configure Docker to use gcloud as a credential helper
       run: |-
-        gcloud --quiet auth configure-docker us-central1-docker.pkg.dev
+        gcloud --quiet auth configure-docker europe-west1-docker.pkg.dev
 
     - name: Get the GIT_SHA
       id: get-sha
@@ -44,14 +45,14 @@ jobs:
     - name: Build Docker image
       run: |-
         docker build \
-          --tag "us-central1-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:${{ steps.get-sha.outputs.GIT_SHA }}" \
-          --tag "us-central1-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:latest" \
+          --tag "europe-west1-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/pando/$SERVICE:${{ steps.get-sha.outputs.GIT_SHA }}" \
+          --tag "europe-west1-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/pando/$SERVICE:latest" \
           .
 
     - name: Publish Docker image to Artifact Registry
       run: |-
-        docker push "us-central1-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:${{ steps.get-sha.outputs.GIT_SHA }}"
-        docker push "us-central1-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:latest"
+        docker push "europe-west1-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/pando/$SERVICE:${{ steps.get-sha.outputs.GIT_SHA }}"
+        docker push "europe-west1-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/pando/$SERVICE:latest"
 
     - name: Deploy to Cloud Run
       id: deploy
@@ -59,7 +60,8 @@ jobs:
       with:
         service: ${{ env.SERVICE }}
         region: ${{ env.REGION }}
-        image: us-central1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.SERVICE }}:${{ steps.get-sha.outputs.GIT_SHA }}
+        image: europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/pando/${{ env.SERVICE }}:${{ steps.get-sha.outputs.GIT_SHA }}
+        service_account: 483569217524-compute@developer.gserviceaccount.com
         env_vars: |
           NODE_ENV=production
           GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}
@@ -74,13 +76,12 @@ jobs:
         flags: |
           --platform=managed
           --port=8080
-          --memory=1Gi
-          --cpu=1
+          --memory=512Mi
+          --cpu=1000m
           --min-instances=0
           --max-instances=10
           --timeout=300
           --concurrency=80
-          --cpu-throttling
           --allow-unauthenticated
           --set-cloudsql-instances=${{ env.PROJECT_ID }}:us-central1:pando-mysql
 
