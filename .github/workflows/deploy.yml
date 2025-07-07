@@ -35,7 +35,7 @@ jobs:
 
     - name: Configure Docker to use gcloud as a credential helper
       run: |-
-        gcloud --quiet auth configure-docker
+        gcloud --quiet auth configure-docker us-central1-docker.pkg.dev
 
     - name: Get the GIT_SHA
       id: get-sha
@@ -44,14 +44,14 @@ jobs:
     - name: Build Docker image
       run: |-
         docker build \
-          --tag "gcr.io/$PROJECT_ID/$SERVICE:${{ steps.get-sha.outputs.GIT_SHA }}" \
-          --tag "gcr.io/$PROJECT_ID/$SERVICE:latest" \
+          --tag "us-central1-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:${{ steps.get-sha.outputs.GIT_SHA }}" \
+          --tag "us-central1-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:latest" \
           .
 
-    - name: Publish Docker image to GCR
+    - name: Publish Docker image to Artifact Registry
       run: |-
-        docker push "gcr.io/$PROJECT_ID/$SERVICE:${{ steps.get-sha.outputs.GIT_SHA }}"
-        docker push "gcr.io/$PROJECT_ID/$SERVICE:latest"
+        docker push "us-central1-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:${{ steps.get-sha.outputs.GIT_SHA }}"
+        docker push "us-central1-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:latest"
 
     - name: Deploy to Cloud Run
       id: deploy
@@ -59,7 +59,7 @@ jobs:
       with:
         service: ${{ env.SERVICE }}
         region: ${{ env.REGION }}
-        image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{ steps.get-sha.outputs.GIT_SHA }}
+        image: us-central1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.SERVICE }}:${{ steps.get-sha.outputs.GIT_SHA }}
         env_vars: |
           NODE_ENV=production
           GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}
