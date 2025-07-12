@@ -16,7 +16,7 @@
     "open": "gcloud app browse",
     "test-email": "node test-email.js",
     "test-config": "node -e \"require('./config/email'); console.log('✅ Configuración de email cargada correctamente');\"",
-    "test-db": "node -e \"require('./config/gcp-database').testConnection().then(r => console.log('DB:', r ? '✅ Conectado' : '❌ Error'))\"",
+    "test-db": "node -e \"require('./config/postgres-database').testConnection().then(r => console.log('DB:', r ? '✅ Conectado' : '❌ Error'))\"",
     "cloud-sql:create": "gcloud sql instances create pando-mysql --database-version=MYSQL_8_0 --tier=db-f1-micro --region=us-central1",
     "cloud-sql:setup": "gcloud sql databases create pando_db --instance=pando-mysql && gcloud sql users set-password root --host=% --instance=pando-mysql --password=YOUR_PASSWORD",
     "cloud-sql:connect": "gcloud sql connect pando-mysql --user=root --quiet"
@@ -26,7 +26,8 @@
     "nodemailer": "^6.9.7",
     "cors": "^2.8.5",
     "mysql2": "^3.6.5",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "pg": "^8.11.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
