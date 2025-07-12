@@ -4,10 +4,9 @@ const cors = require('cors');
 const path = require('path');
 const emailConfig = require('./config/email');
  
-//Pruebas locales
-//const database = require('./config/database');
-// Usar la nueva configuración de base de datos para Google Cloud SQL
-const database = require('./config/gcp-database');
+// Configuración de base de datos
+// Para PostgreSQL usar el módulo recien creado
+const database = require('./config/postgres-database');
 require('dotenv').config();
 
 const app = express();
