@@ -6,7 +6,7 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 console.log('🗄️ Configuración PostgreSQL:', {
     host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5432,
+    port: process.env.DB_PORT || 5433,
     user: process.env.DB_USER || 'postgres',
     database: process.env.DB_NAME || 'pando_db'
 });
@@ -16,7 +16,7 @@ const contactsFile = path.join(backupDir, 'contacts.json');
 
 const pool = new Pool({
     host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
+    port: parseInt(process.env.DB_PORT || '5433'),
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'pando_db'

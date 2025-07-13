@@ -1,0 +1,156 @@
+[
+  {
+    "id": 1752302859712,
+    "name": "HOLA",
+    "email": "suscripcionchatgpt4@gmail.com",
+    "subject": "ss",
+    "message": "sss",
+    "ip_address": "192.168.1.98",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "created_at": "2025-07-12T06:47:39.712Z",
+    "status": "new"
+  },
+  {
+    "id": 1752302839745,
+    "name": "prueba mel",
+    "email": "caterno99@gmail.com",
+    "subject": "sd",
+    "message": "sdsd",
+    "ip_address": "192.168.1.98",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "created_at": "2025-07-12T06:47:19.745Z",
+    "status": "new"
+  },
+  {
+    "id": 1752302836934,
+    "name": "prueba mel",
+    "email": "caterno99@gmail.com",
+    "subject": "sd",
+    "message": "sdsd",
+    "ip_address": "192.168.1.98",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "created_at": "2025-07-12T06:47:16.934Z",
+    "status": "new"
+  },
+  {
+    "id": 1752302214732,
+    "name": "mel",
+    "email": "junior.matias@unas.edu.pe",
+    "subject": "Hola",
+    "message": "probando",
+    "ip_address": "192.168.1.98",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "created_at": "2025-07-12T06:36:54.732Z",
+    "status": "new"
+  },
+  {
+    "id": 1752302213885,
+    "name": "mel",
+    "email": "junior.matias@unas.edu.pe",
+    "subject": "Hola",
+    "message": "probando",
+    "ip_address": "192.168.1.98",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "created_at": "2025-07-12T06:36:53.885Z",
+    "status": "new"
+  },
+  {
+    "id": 1752302212733,
+    "name": "mel",
+    "email": "junior.matias@unas.edu.pe",
+    "subject": "Hola",
+    "message": "probando",
+    "ip_address": "192.168.1.98",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "created_at": "2025-07-12T06:36:52.734Z",
+    "status": "new"
+  },
+  {
+    "id": 1752302211835,
+    "name": "mel",
+    "email": "junior.matias@unas.edu.pe",
+    "subject": "Hola",
+    "message": "probando",
+    "ip_address": "192.168.1.98",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "created_at": "2025-07-12T06:36:51.835Z",
+    "status": "new"
+  },
+  {
+    "id": 1752302210583,
+    "name": "mel",
+    "email": "junior.matias@unas.edu.pe",
+    "subject": "Hola",
+    "message": "probando",
+    "ip_address": "192.168.1.98",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "created_at": "2025-07-12T06:36:50.583Z",
+    "status": "new"
+  },
+  {
+    "id": 1752302209686,
+    "name": "mel",
+    "email": "junior.matias@unas.edu.pe",
+    "subject": "Hola",
+    "message": "probando",
+    "ip_address": "192.168.1.98",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "created_at": "2025-07-12T06:36:49.686Z",
+    "status": "new"
+  },
+  {
+    "id": 1752302208930,
+    "name": "mel",
+    "email": "junior.matias@unas.edu.pe",
+    "subject": "Hola",
+    "message": "probando",
+    "ip_address": "192.168.1.98",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "created_at": "2025-07-12T06:36:48.930Z",
+    "status": "new"
+  },
+  {
+    "id": 1752302208137,
+    "name": "mel",
+    "email": "junior.matias@unas.edu.pe",
+    "subject": "Hola",
+    "message": "probando",
+    "ip_address": "192.168.1.98",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "created_at": "2025-07-12T06:36:48.137Z",
+    "status": "new"
+  },
+  {
+    "id": 1752302207187,
+    "name": "mel",
+    "email": "junior.matias@unas.edu.pe",
+    "subject": "Hola",
+    "message": "probando",
+    "ip_address": "192.168.1.98",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "created_at": "2025-07-12T06:36:47.187Z",
+    "status": "new"
+  },
+  {
+    "id": 1752302201966,
+    "name": "mel",
+    "email": "junior.matias@unas.edu.pe",
+    "subject": "Hola",
+    "message": "probando",
+    "ip_address": "192.168.1.98",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "created_at": "2025-07-12T06:36:41.966Z",
+    "status": "new"
+  },
+  {
+    "id": 1752291028664,
+    "name": "Junior Edinson",
+    "email": "caterno99@gmail.com",
+    "subject": "sd",
+    "message": "dd",
+    "ip_address": "192.168.1.98",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "created_at": "2025-07-12T03:30:28.664Z",
+    "status": "new"
+  }
+]
