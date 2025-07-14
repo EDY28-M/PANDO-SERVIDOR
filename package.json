@@ -16,7 +16,7 @@
     "build": "echo 'No build step required for this project'",
     "deploy": "gcloud app deploy",
     "deploy:sql": "gcloud sql instances create pando-mysql --database-version=MYSQL_8_0 --tier=db-f1-micro --region=us-central1",
-    "logs": "gcloud app logs tail -s default",
+    "logs": "gcloud app logs tail -s default", 
     "open": "gcloud app browse",
     "test-email": "node test-email.js",
     "test-config": "node -e \"require('./config/email'); console.log('✅ Configuración de email cargada correctamente');\"",
