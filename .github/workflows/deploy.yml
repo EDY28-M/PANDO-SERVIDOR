@@ -41,9 +41,16 @@ jobs:
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
         
-    - name: Crear archivo app.yaml dinámico
+    - name: Verificar estructura del proyecto
       run: |
-        cat > app.yaml << EOF
+        echo "📁 Estructura del proyecto:"
+        ls -la
+        echo "📋 package.json existe:" $(test -f package.json && echo "✅" || echo "❌")
+        echo "🖥️ server.js existe:" $(test -f server.js && echo "✅" || echo "❌")
+        
+    - name: Crear app.yaml simplificado
+      run: |
+        cat > app.yaml << 'EOF'
         runtime: nodejs20
         service: default
 
@@ -52,65 +59,57 @@ jobs:
           PORT: 8080
           GMAIL_USER: "${{ secrets.GMAIL_USER }}"
           GMAIL_PASS: "${{ secrets.GMAIL_PASS }}"
-          
-          # Configuración de Google Cloud SQL MySQL
-          GOOGLE_CLOUD_PROJECT: "${{ secrets.GCP_PROJECT_ID }}"
-          CLOUD_SQL_CONNECTION_NAME: "${{ secrets.CLOUD_SQL_CONNECTION_NAME }}"
-          CLOUD_SQL_PUBLIC_IP: "${{ secrets.CLOUD_SQL_PUBLIC_IP }}"
           DB_HOST: "${{ secrets.DB_HOST }}"
           DB_PORT: "${{ secrets.DB_PORT }}"
           DB_USER: "${{ secrets.DB_USER }}"
           DB_PASSWORD: "${{ secrets.DB_PASSWORD }}"
           DB_NAME: "${{ secrets.DB_NAME }}"
-          
-          # Configuración de seguridad
           SESSION_SECRET: "${{ secrets.SESSION_SECRET }}"
-          MAX_EMAILS_PER_HOUR: "${{ secrets.MAX_EMAILS_PER_HOUR }}"
-          MAX_EMAILS_PER_DAY: "${{ secrets.MAX_EMAILS_PER_DAY }}"
-          
-          # Configuración de CORS
           ALLOWED_ORIGINS: "${{ secrets.ALLOWED_ORIGINS }}"
-          CUSTOM_DOMAIN: "${{ secrets.CUSTOM_DOMAIN }}"
-          FORCE_HTTPS: "true"
 
-        # Configuración automática de instancias
         automatic_scaling:
           target_cpu_utilization: 0.65
           min_instances: 1
-          max_instances: 5
+          max_instances: 3
 
-        # Recursos del servidor
         resources:
           cpu: 1
           memory_gb: 0.5
-          disk_size_gb: 10
 
-        # Configuración de Cloud SQL Proxy
-        beta_settings:
-          cloud_sql_instances: "${{ secrets.CLOUD_SQL_CONNECTION_NAME }}"
-
-        # Manejadores de URL
         handlers:
           - url: /.*
             script: auto
             secure: always
-
-        # Servicios adicionales
-        inbound_services:
-          - warmup
         EOF
+        
+    - name: Validar app.yaml
+      run: |
+        echo "📄 Contenido de app.yaml:"
+        cat app.yaml
+        echo "✅ app.yaml creado correctamente"
+        
+    - name: Verificar configuración de GCP
+      run: |
+        echo "🔍 Verificando configuración de Google Cloud..."
+        gcloud config list
+        gcloud app describe || echo "⚠️ App Engine no inicializado"
+        
+    - name: Inicializar App Engine si es necesario
+      run: |
+        if ! gcloud app describe --quiet 2>/dev/null; then
+          echo "🚀 Inicializando App Engine..."
+          gcloud app create --region=us-central1 --quiet
+        else
+          echo "✅ App Engine ya está inicializado"
+        fi
         
     - name: Deploy a App Engine
       run: |
-        gcloud app deploy app.yaml --quiet --no-promote
-        
-    - name: Promover a producción
-      if: github.ref == 'refs/heads/main'
-      run: |
-        gcloud app services set-traffic default --splits=LATEST=100
+        echo "🚀 Iniciando deployment..."
+        gcloud app deploy app.yaml --quiet --verbosity=debug
         
     - name: Verificar deployment
       run: |
-        echo "🚀 Deployment completado!"
-        echo "📱 URL: https://${{ secrets.GCP_PROJECT_ID }}.appspot.com"
-        echo "🌐 Dominio personalizado: https://${{ secrets.CUSTOM_DOMAIN }}"
+        echo "✅ Deployment completado!"
+        echo "🌐 URL disponible en Google Cloud Console"
+        gcloud app browse --no-launch-browser
