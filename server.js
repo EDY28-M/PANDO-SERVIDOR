@@ -5,8 +5,8 @@ const path = require('path');
 const emailConfig = require('./config/email');
  
 // Configuración de base de datos
-// Para PostgreSQL usar el módulo recien creado
-const database = require('./config/postgres-database');
+// Usar Google Cloud SQL MySQL para producción
+const database = require('./config/gcp-database');
 require('dotenv').config();
 
 const app = express();
