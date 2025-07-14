@@ -50,7 +50,7 @@ jobs:
         
     - name: Crear app.yaml simplificado
       run: |
-        cat > app.yaml << 'EOF'
+        cat > app.yaml << EOF
         runtime: nodejs20
         service: default
 
@@ -82,11 +82,13 @@ jobs:
             secure: always
         EOF
         
-    - name: Validar app.yaml
+    - name: Debug del app.yaml generado
       run: |
-        echo "📄 Contenido de app.yaml:"
+        echo "📄 Contenido completo de app.yaml:"
         cat app.yaml
-        echo "✅ app.yaml creado correctamente"
+        echo ""
+        echo "🔍 Verificando sintaxis YAML..."
+        python3 -c "import yaml; yaml.safe_load(open('app.yaml'))" && echo "✅ YAML válido" || echo "❌ YAML inválido"
         
     - name: Verificar configuración de GCP
       run: |
@@ -106,7 +108,11 @@ jobs:
     - name: Deploy a App Engine
       run: |
         echo "🚀 Iniciando deployment..."
-        gcloud app deploy app.yaml --quiet --verbosity=debug
+        gcloud app deploy app.yaml \
+          --quiet \
+          --verbosity=info \
+          --stop-previous-version \
+          --promote
         
     - name: Verificar deployment
       run: |
