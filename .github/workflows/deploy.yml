@@ -1,94 +1,116 @@
-name: Deploy PANDO to Cloud Run
+name: Deploy to Google App Engine
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
-
-env:
-  PROJECT_ID: ascendant-altar-457900-v4
-  SERVICE: pando-fronted  # ← Corregido: usar nombre existente
-  REGION: europe-west1    # ← Corregido: usar región existente
-  REPOSITORY: cloud-run-source-deploy  # ← Corregido: usar repositorio existente
+    branches: [ main ]
 
 jobs:
-  setup-build-publish-deploy:
-    name: Setup, Build, Publish, and Deploy
+  deploy:
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      id-token: write
-
+    
     steps:
-    - name: Checkout
+    - name: Checkout código
       uses: actions/checkout@v4
-
-    - name: Google Auth
-      id: auth
-      uses: 'google-github-actions/auth@v2'
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
       with:
-        credentials_json: '${{ secrets.GCP_SA_KEY }}'
-
-    - name: Set up Cloud SDK
-      uses: 'google-github-actions/setup-gcloud@v2'
-
-    - name: Configure Docker to use gcloud as a credential helper
-      run: |-
-        gcloud --quiet auth configure-docker europe-west1-docker.pkg.dev
-
-    - name: Get the GIT_SHA
-      id: get-sha
-      run: echo "GIT_SHA=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
-
-    - name: Build Docker image
-      run: |-
-        docker build \
-          --tag "europe-west1-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/pando/$SERVICE:${{ steps.get-sha.outputs.GIT_SHA }}" \
-          --tag "europe-west1-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/pando/$SERVICE:latest" \
-          .
-
-    - name: Publish Docker image to Artifact Registry
-      run: |-
-        docker push "europe-west1-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/pando/$SERVICE:${{ steps.get-sha.outputs.GIT_SHA }}"
-        docker push "europe-west1-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/pando/$SERVICE:latest"
-
-    - name: Deploy to Cloud Run
-      id: deploy
-      uses: google-github-actions/deploy-cloudrun@v2
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Instalar dependencias
+      run: npm ci
+      
+    - name: Ejecutar tests (si los hay)
+      run: |
+        if [ -f "package.json" ] && grep -q '"test"' package.json; then
+          npm test
+        else
+          echo "No se encontraron tests configurados"
+        fi
+      
+    - name: Autenticar con Google Cloud
+      uses: google-github-actions/auth@v2
       with:
-        service: ${{ env.SERVICE }}
-        region: ${{ env.REGION }}
-        image: europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/pando/${{ env.SERVICE }}:${{ steps.get-sha.outputs.GIT_SHA }}
-        service_account: 483569217524-compute@developer.gserviceaccount.com
-        env_vars: |
-          NODE_ENV=production
-          GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}
-          CLOUD_SQL_CONNECTION_NAME=${{ env.PROJECT_ID }}:us-central1:pando-mysql
-          DB_NAME=pando_db
-          DB_USER=root
-        secrets: |
-          DB_PASSWORD=db-password:latest
-          GMAIL_USER=gmail-user:latest
-          GMAIL_PASS=gmail-pass:latest
-          SESSION_SECRET=session-secret:latest
-        flags: |
-          --platform=managed
-          --port=8080
-          --memory=512Mi
-          --cpu=1000m
-          --min-instances=0
-          --max-instances=10
-          --timeout=300
-          --concurrency=80
-          --allow-unauthenticated
-          --set-cloudsql-instances=${{ env.PROJECT_ID }}:us-central1:pando-mysql
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        
+    - name: Configurar Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        
+    - name: Crear archivo app.yaml dinámico
+      run: |
+        cat > app.yaml << EOF
+        runtime: nodejs20
+        service: default
 
-    - name: Show Output
-      run: echo ${{ steps.deploy.outputs.url }}
+        env_variables:
+          NODE_ENV: production
+          PORT: 8080
+          GMAIL_USER: "${{ secrets.GMAIL_USER }}"
+          GMAIL_PASS: "${{ secrets.GMAIL_PASS }}"
+          
+          # Configuración de Google Cloud SQL MySQL
+          GOOGLE_CLOUD_PROJECT: "${{ secrets.GCP_PROJECT_ID }}"
+          CLOUD_SQL_CONNECTION_NAME: "${{ secrets.CLOUD_SQL_CONNECTION_NAME }}"
+          CLOUD_SQL_PUBLIC_IP: "${{ secrets.CLOUD_SQL_PUBLIC_IP }}"
+          DB_HOST: "${{ secrets.DB_HOST }}"
+          DB_PORT: "${{ secrets.DB_PORT }}"
+          DB_USER: "${{ secrets.DB_USER }}"
+          DB_PASSWORD: "${{ secrets.DB_PASSWORD }}"
+          DB_NAME: "${{ secrets.DB_NAME }}"
+          
+          # Configuración de seguridad
+          SESSION_SECRET: "${{ secrets.SESSION_SECRET }}"
+          MAX_EMAILS_PER_HOUR: "${{ secrets.MAX_EMAILS_PER_HOUR }}"
+          MAX_EMAILS_PER_DAY: "${{ secrets.MAX_EMAILS_PER_DAY }}"
+          
+          # Configuración de CORS
+          ALLOWED_ORIGINS: "${{ secrets.ALLOWED_ORIGINS }}"
+          CUSTOM_DOMAIN: "${{ secrets.CUSTOM_DOMAIN }}"
+          FORCE_HTTPS: "true"
 
-    - name: Test deployment
-      run: |-
-        curl -f ${{ steps.deploy.outputs.url }}/health || exit 1
-        echo "Deployment successful! URL: ${{ steps.deploy.outputs.url }}"
+        # Configuración automática de instancias
+        automatic_scaling:
+          target_cpu_utilization: 0.65
+          min_instances: 1
+          max_instances: 5
+
+        # Recursos del servidor
+        resources:
+          cpu: 1
+          memory_gb: 0.5
+          disk_size_gb: 10
+
+        # Configuración de Cloud SQL Proxy
+        beta_settings:
+          cloud_sql_instances: "${{ secrets.CLOUD_SQL_CONNECTION_NAME }}"
+
+        # Manejadores de URL
+        handlers:
+          - url: /.*
+            script: auto
+            secure: always
+
+        # Servicios adicionales
+        inbound_services:
+          - warmup
+        EOF
+        
+    - name: Deploy a App Engine
+      run: |
+        gcloud app deploy app.yaml --quiet --no-promote
+        
+    - name: Promover a producción
+      if: github.ref == 'refs/heads/main'
+      run: |
+        gcloud app services set-traffic default --splits=LATEST=100
+        
+    - name: Verificar deployment
+      run: |
+        echo "🚀 Deployment completado!"
+        echo "📱 URL: https://${{ secrets.GCP_PROJECT_ID }}.appspot.com"
+        echo "🌐 Dominio personalizado: https://${{ secrets.CUSTOM_DOMAIN }}"
