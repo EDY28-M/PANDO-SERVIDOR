@@ -1,121 +1,94 @@
-name: Deploy to Google App Engine
+name: Deploy PANDO to Cloud Run
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
+
+env:
+  PROJECT_ID: ascendant-altar-457900-v4
+  SERVICE: pando-fronted  # ← Corregido: usar nombre existente
+  REGION: europe-west1    # ← Corregido: usar región existente
+  REPOSITORY: cloud-run-source-deploy  # ← Corregido: usar repositorio existente
 
 jobs:
-  deploy:
+  setup-build-publish-deploy:
+    name: Setup, Build, Publish, and Deploy
     runs-on: ubuntu-latest
-    
+
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
-    - name: Checkout código
+    - name: Checkout
       uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
+
+    - name: Google Auth
+      id: auth
+      uses: 'google-github-actions/auth@v2'
       with:
-        node-version: '20'
-        cache: 'npm'
-        
-    - name: Instalar dependencias
-      run: npm ci
-      
-    - name: Ejecutar tests (si los hay)
-      run: |
-        if [ -f "package.json" ] && grep -q '"test"' package.json; then
-          npm test
-        else
-          echo "No se encontraron tests configurados"
-        fi
-      
-    - name: Autenticar con Google Cloud
-      uses: google-github-actions/auth@v2
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+    - name: Set up Cloud SDK
+      uses: 'google-github-actions/setup-gcloud@v2'
+
+    - name: Configure Docker to use gcloud as a credential helper
+      run: |-
+        gcloud --quiet auth configure-docker europe-west1-docker.pkg.dev
+
+    - name: Get the GIT_SHA
+      id: get-sha
+      run: echo "GIT_SHA=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+    - name: Build Docker image
+      run: |-
+        docker build \
+          --tag "europe-west1-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/pando/$SERVICE:${{ steps.get-sha.outputs.GIT_SHA }}" \
+          --tag "europe-west1-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/pando/$SERVICE:latest" \
+          .
+
+    - name: Publish Docker image to Artifact Registry
+      run: |-
+        docker push "europe-west1-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/pando/$SERVICE:${{ steps.get-sha.outputs.GIT_SHA }}"
+        docker push "europe-west1-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/pando/$SERVICE:latest"
+
+    - name: Deploy to Cloud Run
+      id: deploy
+      uses: google-github-actions/deploy-cloudrun@v2
       with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
-        
-    - name: Configurar Google Cloud SDK
-      uses: google-github-actions/setup-gcloud@v2
-      with:
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
-        
-    - name: Verificar estructura del proyecto
-      run: |
-        echo "📁 Estructura del proyecto:"
-        ls -la
-        echo "📋 package.json existe:" $(test -f package.json && echo "✅" || echo "❌")
-        echo "🖥️ server.js existe:" $(test -f server.js && echo "✅" || echo "❌")
-        
-    - name: Crear app.yaml simplificado
-      run: |
-        cat > app.yaml << EOF
-        runtime: nodejs20
-        service: default
+        service: ${{ env.SERVICE }}
+        region: ${{ env.REGION }}
+        image: europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/pando/${{ env.SERVICE }}:${{ steps.get-sha.outputs.GIT_SHA }}
+        service_account: 483569217524-compute@developer.gserviceaccount.com
+        env_vars: |
+          NODE_ENV=production
+          GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}
+          CLOUD_SQL_CONNECTION_NAME=${{ env.PROJECT_ID }}:us-central1:pando-mysql
+          DB_NAME=pando_db
+          DB_USER=root
+        secrets: |
+          DB_PASSWORD=db-password:latest
+          GMAIL_USER=gmail-user:latest
+          GMAIL_PASS=gmail-pass:latest
+          SESSION_SECRET=session-secret:latest
+        flags: |
+          --platform=managed
+          --port=8080
+          --memory=512Mi
+          --cpu=1000m
+          --min-instances=0
+          --max-instances=10
+          --timeout=300
+          --concurrency=80
+          --allow-unauthenticated
+          --set-cloudsql-instances=${{ env.PROJECT_ID }}:us-central1:pando-mysql
 
-        env_variables:
-          NODE_ENV: production
-          PORT: 8080
-          GMAIL_USER: "${{ secrets.GMAIL_USER }}"
-          GMAIL_PASS: "${{ secrets.GMAIL_PASS }}"
-          DB_HOST: "${{ secrets.DB_HOST }}"
-          DB_PORT: "${{ secrets.DB_PORT }}"
-          DB_USER: "${{ secrets.DB_USER }}"
-          DB_PASSWORD: "${{ secrets.DB_PASSWORD }}"
-          DB_NAME: "${{ secrets.DB_NAME }}"
-          SESSION_SECRET: "${{ secrets.SESSION_SECRET }}"
-          ALLOWED_ORIGINS: "${{ secrets.ALLOWED_ORIGINS }}"
+    - name: Show Output
+      run: echo ${{ steps.deploy.outputs.url }}
 
-        automatic_scaling:
-          target_cpu_utilization: 0.65
-          min_instances: 1
-          max_instances: 3
-
-        resources:
-          cpu: 1
-          memory_gb: 0.5
-
-        handlers:
-          - url: /.*
-            script: auto
-            secure: always
-        EOF
-        
-    - name: Debug del app.yaml generado
-      run: |
-        echo "📄 Contenido completo de app.yaml:"
-        cat app.yaml
-        echo ""
-        echo "🔍 Verificando sintaxis YAML..."
-        python3 -c "import yaml; yaml.safe_load(open('app.yaml'))" && echo "✅ YAML válido" || echo "❌ YAML inválido"
-        
-    - name: Verificar configuración de GCP
-      run: |
-        echo "🔍 Verificando configuración de Google Cloud..."
-        gcloud config list
-        gcloud app describe || echo "⚠️ App Engine no inicializado"
-        
-    - name: Inicializar App Engine si es necesario
-      run: |
-        if ! gcloud app describe --quiet 2>/dev/null; then
-          echo "🚀 Inicializando App Engine..."
-          gcloud app create --region=us-central1 --quiet
-        else
-          echo "✅ App Engine ya está inicializado"
-        fi
-        
-    - name: Deploy a App Engine
-      run: |
-        echo "🚀 Iniciando deployment..."
-        gcloud app deploy app.yaml \
-          --quiet \
-          --verbosity=info \
-          --stop-previous-version \
-          --promote
-        
-    - name: Verificar deployment
-      run: |
-        echo "✅ Deployment completado!"
-        echo "🌐 URL disponible en Google Cloud Console"
-        gcloud app browse --no-launch-browser
+    - name: Test deployment
+      run: |-
+        curl -f ${{ steps.deploy.outputs.url }}/health || exit 1
+        echo "Deployment successful! URL: ${{ steps.deploy.outputs.url }}"
